@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="ru" ng-app="MyNNM" ng-controller="netManager">
+	<head>
+		<meta charset="utf-8">
+		<title>{{ app.fullName +' - '+ app.name }}</title>
+		<link rel="shortcut icon" href="favicon.ico">
+		<link rel="icon" href="favicon.ico">
+		<link rel="stylesheet" type="text/css" href="css/styles.css">
+
+		<!-- <link href="css/rainbow/blackboard.css" rel="stylesheet" type="text/css"> -->
+		<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.7.0/styles/school-book.min.css">
+		<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.7.0/highlight.min.js"></script>
+		
+		<script src="https://code.jquery.com/jquery-1.11.2.min.js"></script> 
+		<script src="https://code.jquery.com/ui/1.11.4/jquery-ui.min.js"></script><!--  -->
+		<link rel="stylesheet" type="text/css" href="https://code.jquery.com/ui/1.11.4/themes/black-tie/jquery-ui.css"><!--  -->
+
+		<!-- <script src="https://code.jquery.com/mobile/1.4.5/jquery.mobile-1.4.5.min.js"></script> -->
+		<!-- <script src="https://code.jquery.com/jquery-2.1.3.min.js"></script> -->
+
+		<script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.3.14/angular.min.js"></script><!--  -->
+
+		<!--[if lt IE 9]><script src="http://html5shiv.googlecode.com/svn/trunk/html5.js"></script><![endif]-->
+
+        <script src="js/gojs/go.js"></script>
+		
+		<script src="js/neuralNet.js"></script>
+		<script src="js/netManager.js"></script>
+        <script src="js/diagram.js" defer></script>
+		<script src="js/main.js" defer></script>
+	</head>
+
+	<body>
+		<div id="menu">
+			<ul class="menu notSelectable">
+				<li>
+					<b>File</b>
+					<ul class="submenu">
+						<li>
+							<b>New</b>
+							<ul class="submenu">
+								<li ng-click=" NM.createNet() ">Neural Net</li>
+							</ul>
+						</li>
+						<li ng-click=" NM.saveToFile() ">Save</li>
+						<li ng-click=" NM.choiseFile() ">Load</li>
+					</ul>
+				</li>
+				<li>
+					<b>Manage</b>
+					<ul class="submenu">
+						<li ng-click=" NM.runNet() ">Run</li>
+						<li ng-click=" NM.stopNet() ">Stop</li>
+					</ul>
+				</li>
+			</ul>
+			<input type="file" name="upload" id="open_file" onchange=" NM.loadFromFile() ">
+		</div>
+		<div id="netsArea">
+			<div id="overviewDiv" ng-show=" NM.selNet ">
+				<div id="overviewHeader" class="notSelectable">Network overview</div>
+				<div id="overviewContent"></div>
+			</div>
+			<div id="netsList" ng-class="{ opened: netsListOpenFlag }">
+				<h4>
+					{{ ( NM.nets.length ? "List of" : "No" ) + " Networks" }}
+					<button ng-click=" netsListOpenFlag = !netsListOpenFlag "
+							title="{{ netsListOpenFlag ? 'opened' : 'autohide' }}"
+					>{{ netsListOpenFlag ? '&roarr;' : '&loarr;' }}</button>
+				</h4>
+				<ul ng-repeat=" net in NM.nets | orderBy: 'id' ">
+					<li>
+						<input title="Select" size="15" ng-model=" net.name " readonly="readonly" class="editable"
+								ng-class="{ 'selected' : NM.selNet == net }"
+								ng-click=" NM.selectNet(net) " ng-dblclick=" enableInput($event) "
+								ng-blur=" disableInput($event) ">
+						<button ng-click=" NM.deleteNet(net) " title="Delete">x</button>
+					</li>
+				</ul>
+			</div>
+			<div id="netsViews">
+				<!-- h4>{{ NM.selNet.name || "No Selected" }}</h4 -->
+				<div id="daigramDiv"></div>
+			</div>
+			<div id="neuronPanel" ng-class="{ opened: neuronPropsOpenFlag }">
+				<h4>
+					<button ng-click=" neuronPropsOpenFlag = !neuronPropsOpenFlag "
+							title="{{ neuronPropsOpenFlag ? 'opened' : 'autohide' }}"
+					>{{ neuronPropsOpenFlag ? '&loarr;' : '&roarr;' }}</button>
+					Neuron Props
+				</h4>
+				<div id="neuronProps">
+					<h4>{{ NM.selNeu.name || "No Selected" }}</h4>
+					<div ng-show=" NM.selNeu ">
+						<details open>
+							<summary title="click to open/close">Parameters</summary>
+							Activation Level<br> <input type="number" size="4" step="0.1" ng-model=" NM.selNeu.activation "><br>
+							Activation Function<br>
+							<pre id="activationF" class="pointer notSelectable" title="Click to edit" ng-click=" openCodeEditor() ">
+								<!-- code class="javascript"></code -->{{ NM.selNeu.activationF }}
+							</pre>
+							Deceleration:<br>
+							Level<br> <input type="number" size="4" step="0.01" ng-model=" NM.selNeu.decelL "><br>
+							Rate ( <span title="milliseconds">ms</span> )<br> <input type="number" size="4" ng-model=" NM.selNeu.decelR "><br>
+							Synapse:<br>
+							{{ NM.selNeu.synapse ? 'Connected on ' + NM.selNeu.synapse.onNeu : 'Not Connected' }}
+						</details>
+						<details open>
+							<summary title="click to open/close">Dendrites</summary>
+							<div class="dendrites pointer"
+									ng-repeat=" den in NM.selNeu.dendrites | orderBy: 'id' "
+									ng-class="{ 'selected' : NM.selDen == den }"
+									ng-click=" NM.selectDen(den) ">
+								{{ den.name }}
+								<button ng-click=" NM.deleteDendrite( den ) ">x</button>
+							</div>
+							<button ng-click=" NM.createDendrite() ">+</button>
+							<details open>
+								<summary title="click to open/close">Synapses</summary>
+								<h4  ng-hide=" NM.selDen ">Select Dendrite</h4>
+								<h4  ng-show=" NM.selDen && !NM.selDen.synapses.length ">No Synapses</h4>
+								<div ng-show=" NM.selDen && NM.selDen.synapses.length " class="synapses"
+										ng-repeat=" syn in NM.selDen.synapses | orderBy: 'id' " >
+									{{ syn.name }} with {{ syn.neuron.name }}<br>
+									<input type="number" size="4" step="0.01" ng-model=" syn.weight ">
+								</div>
+							</details>
+						</details>
+					</div>
+				</div>
+			</div>
+		</div>
+		<div id="notification" ng-mouseenter=" holdNotify() " ng-mouseleave=" unholdNotify() "></div>
+		<div id="codeEditDiv"><pre><code contenteditable="true" class="javascript"></code></pre></div>
+		
+		<!-- script src="js/rainbow/rainbow.min.js"></script>
+		<script src="js/rainbow/language/javascript.js"></script -->
+	</body>
+</html>
